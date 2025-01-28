@@ -8,14 +8,17 @@
 using namespace std;
 
 void ReadFile(string filename){
-    ifstream input(filename);
-    if (not filename) {
-        cout << "Error! The file " << filename << " cannot be opened." << endl;
+    ifstream inputfile(filename);
+    if (not inputfile) {
+        cout << "Error: THe specified file cannot be opened!"<<endl;
     }
-    
+
 }
 
 int main()
 {
-    
+    string filename;
+    cout<<"File input: "
+    cin>> filename;
+    ReadFile(filename);
 }
