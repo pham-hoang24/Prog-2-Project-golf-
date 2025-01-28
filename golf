@@ -2,23 +2,70 @@
 #include <fstream>
 #include <string>
 #include <map>
-#include <set>
-
+#include <vector>
 
 using namespace std;
 
-void ReadFile(string filename){
-    ifstream inputfile(filename);
-    if (not inputfile) {
-        cout << "Error: THe specified file cannot be opened!"<<endl;
-    }
+struct Player {
+    string name;
+    int score;
+};
 
+// Splits a line from the file into its components.
+void split(const string& line_in_file, const char& separator, string& location, string& clubname, string& player_name, int& score) {
+    size_t first = line_in_file.find(separator);
+    size_t second = line_in_file.find(separator, first + 1);
+    size_t third = line_in_file.find(separator, second + 1);
+
+    // Ensure positions are valid and extract substrings
+    if (first != string::npos && second != string::npos && third != string::npos) {
+        location = line_in_file.substr(0, first);
+        clubname = line_in_file.substr(first + 1, second - first - 1);
+        player_name = line_in_file.substr(second + 1, third - second - 1);
+        score = stoi(line_in_file.substr(third + 1)); // Convert score to integer
+    } else {
+        throw invalid_argument("Invalid file line format");
+    }
 }
 
-int main()
-{
+// Reads the file and organizes data into nested maps.
+map<string, map<string, vector<Player>>> ReadFile(const string& filename) {
+    ifstream inputfile(filename);
+    if (!inputfile) {
+        throw runtime_error("Error: The specified file cannot be opened!");
+    }
+
+    map<string, map<string, vector<Player>>> filedata; // Data of the entire file
+    string fileline;
+
+    while (getline(inputfile, fileline)) {
+        string location, clubname, playername;
+        int score;
+        char separator = ';';
+
+        try {
+            split(fileline, separator, location, clubname, playername, score);
+            filedata[location][clubname].push_back({playername, score});
+        } catch (const invalid_argument& e) {
+            cerr << "Skipping invalid line: " << fileline << endl;
+        }
+    }
+
+    return filedata;
+}
+
+int main() {
     string filename;
-    cout<<"File input: "
-    cin>> filename;
-    ReadFile(filename);
+    cout << "File input: ";
+    cin >> filename;
+
+    try {
+        auto data = ReadFile(filename);
+        cout << "File successfully processed!" << endl;
+    } catch (const exception& e) {
+        cerr << e.what() << endl;
+        return 1; // Exit with error code
+    }
+
+    return 0; // Exit successfully
 }
