@@ -7,6 +7,14 @@
 
 using namespace std;
 
+void ReadFile(string filename){
+    ifstream input(filename);
+    if (not filename) {
+        cout << "Error! The file " << filename << " cannot be opened." << endl;
+    }
+    
+}
+
 int main()
 {
     
