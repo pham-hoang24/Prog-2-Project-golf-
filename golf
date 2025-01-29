@@ -1,71 +1,88 @@
 #include <iostream>
 #include <fstream>
-#include <string>
+#include <sstream>
 #include <map>
 #include <vector>
 
 using namespace std;
 
-struct Player {
-    string name;
-    int score;
+struct Round {
+    string name;  // Player's name
+    int score;    // Score
 };
 
-// Splits a line from the file into its components.
-void split(const string& line_in_file, const char& separator, string& location, string& clubname, string& player_name, int& score) {
-    size_t first = line_in_file.find(separator);
-    size_t second = line_in_file.find(separator, first + 1);
-    size_t third = line_in_file.find(separator, second + 1);
-
-    // Ensure positions are valid and extract substrings
-    if (first != string::npos && second != string::npos && third != string::npos) {
-        location = line_in_file.substr(0, first);
-        clubname = line_in_file.substr(first + 1, second - first - 1);
-        player_name = line_in_file.substr(second + 1, third - second - 1);
-        score = stoi(line_in_file.substr(third + 1)); // Convert score to integer
-    } else {
-        throw invalid_argument("Invalid file line format");
+bool processFile(const string& filename, map<string, map<string, vector<Round>>>& data) {
+    ifstream file(filename);
+    if (!file) {
+        cerr << "Error: The specified file cannot be opened!" << endl;
+        return false;
     }
+
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        string location, golfClub, player, scoreStr;
+        int score;
+
+        // Parse the line using ';' as a delimiter
+        if (!getline(ss, location, ';') || !getline(ss, golfClub, ';') ||
+            !getline(ss, player, ';') || !getline(ss, scoreStr, ';')) {
+            cerr << "Error: The specified file has an erroneous line!" << endl;
+            return false;
+        }
+
+        // Trim spaces
+        location.erase(0, location.find_first_not_of(" \t\r\n"));
+        golfClub.erase(0, golfClub.find_first_not_of(" \t\r\n"));
+        player.erase(0, player.find_first_not_of(" \t\r\n"));
+        scoreStr.erase(0, scoreStr.find_first_not_of(" \t\r\n"));
+
+        // Ensure no field is empty
+        if (location.empty() || golfClub.empty() || player.empty() || scoreStr.empty()) {
+            cerr << "Error: A line has an empty value!" << endl;
+            return false;
+        }
+
+        // Convert score to integer
+        try {
+            score = stoi(scoreStr);
+        } catch (...) {
+            cerr << "Error: Invalid score format!" << endl;
+            return false;
+        }
+
+        // Store the data using the Round struct
+        data[location][golfClub].push_back({player, score});
+    }
+    file.close();
+    return true;
 }
 
-// Reads the file and organizes data into nested maps.
-map<string, map<string, vector<Player>>> ReadFile(const string& filename) {
-    ifstream inputfile(filename);
-    if (!inputfile) {
-        throw runtime_error("Error: The specified file cannot be opened!");
-    }
+void displayData(const map<string, map<string, vector<Round>>>& data) {
+    for (const auto& location : data) {
+        cout << location.first << endl;  // Print location
 
-    map<string, map<string, vector<Player>>> filedata; // Data of the entire file
-    string fileline;
+        for (const auto& club : location.second) {
+            cout << "  " << club.first << endl;  // Print golf club
 
-    while (getline(inputfile, fileline)) {
-        string location, clubname, playername;
-        int score;
-        char separator = ';';
-
-        try {
-            split(fileline, separator, location, clubname, playername, score);
-            filedata[location][clubname].push_back({playername, score});
-        } catch (const invalid_argument& e) {
-            cerr << "Skipping invalid line: " << fileline << endl;
+            for (const auto& round : club.second) {
+                cout << "    " << round.name << " " << round.score << endl;
+            }
         }
     }
-
-    return filedata;
 }
 
 int main() {
     string filename;
-    cout << "File input: ";
+    cout << "Input file: ";
     cin >> filename;
 
-    try {
-        auto data = ReadFile(filename);
-        cout << "File successfully processed!" << endl;
-    } catch (const exception& e) {
-        cerr << e.what() << endl;
-        return 1; // Exit with error code
+    map<string, map<string, vector<Round>>> data;
+
+    if (!processFile(filename, data)) {
+        return EXIT_FAILURE;
     }
 
-    return 0; // Exit successfully
+    displayData(data);
+    return EXIT_SUCCESS;
 }
