@@ -183,7 +183,7 @@ void displayPlayed(const map<string, vector<Round>>& data, const string& player)
         cout << player <<" has too few rounds for a handicap:";
      }
     else{
-    cout<< player << "has a HCP of "<<hcp;
+    cout<< player << "has a HCP of "<<hcp<< " with following results:";
     }
     cout << endl;
 
