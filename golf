@@ -5,7 +5,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
-
+#include <limits>
 using namespace std;
 
 //struct to contain player's name, score, club name for a SINGLE ROUND
@@ -18,7 +18,9 @@ struct Round {
 // Trim from both sides of string
 string trim(const string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
-    if (first == string::npos) return ""; // Empty or all spaces
+    if (first == string::npos){
+        return ""; // Empty or all spaces
+    }
     size_t last = str.find_last_not_of(" \t\r\n");
     return str.substr(first, (last - first + 1));
 }
@@ -35,17 +37,12 @@ bool processFile(const string& filename, map<string, vector<Round>>& data, map<s
     while (getline(file, line)) {
         if (line.empty()) continue; // Skip empty lines
 
+
         stringstream ss(line);
         string location, golfClub, player, scoreStr;
-        int score;
-
-        if (!getline(ss, location, ';') || !getline(ss, golfClub, ';') ||
-            !getline(ss, player, ';') || !getline(ss, scoreStr, ';')) {
-            cerr << "Error: The specified file has an erroneous line!" << endl;
-            cerr << "Problematic line: " << line << endl;
-            return false;
-        }
-
+     
+        
+        // Trim and check for empty values
         location = trim(location);
         golfClub = trim(golfClub);
         player = trim(player);
@@ -53,26 +50,35 @@ bool processFile(const string& filename, map<string, vector<Round>>& data, map<s
 
         if (location.empty() || golfClub.empty() || player.empty() || scoreStr.empty()) {
             cerr << "Error: A line has an empty value!" << endl;
-            cerr << "Problematic line: " << line << endl;
             return false;
         }
 
+        if (!getline(ss, location, ';') || !getline(ss, golfClub, ';') ||
+            !getline(ss, player, ';') || !getline(ss, scoreStr, ';')) {
+            cerr << "Error: The specified file has an erroneous line!" << endl;
+            return false;
+        }
+
+
+
+        // Convert score to integer SAFELY
+        int score;
         try {
             score = stoi(scoreStr);
-        } catch (const invalid_argument&) {
-            cerr << "Error: Invalid score format in line: " << line << endl;
-            return false;
-        } catch (const out_of_range&) {
-            cerr << "Error: Score out of range in line: " << line << endl;
+        } catch (...) {
+            cerr << "Error: A line has an empty value!" << endl;
             return false;
         }
 
+        // Store data
         data[player].push_back({player, score, golfClub});
-        clubs[location].insert(golfClub);  // Ensures unique clubs per location
+        clubs[location].insert(golfClub);
     }
     file.close();
     return true;
 }
+
+
 
 //HCP calculator
 double calculateHCP(const vector<Round>& rounds) {
@@ -85,6 +91,8 @@ double calculateHCP(const vector<Round>& rounds) {
     for (int i = 0; i < count; i++) sum += scores[i];
     return sum / count;
 }
+
+
 //Compares the HCP of the two players given and prints the results of the comparison.
 void comparePlayers(const map<string, vector<Round>>& data, const string& input) {
     stringstream ss(input);
@@ -161,8 +169,6 @@ void comparePlayers(const map<string, vector<Round>>& data, const string& input)
 }
 
 
-
-
 //Print function for a "Played [player]" command, uses HCP function to calculate HCP and print the according strings
 void displayPlayed(const map<string, vector<Round>>& data, const string& player) {
     auto it = data.find(player);
@@ -171,14 +177,21 @@ void displayPlayed(const map<string, vector<Round>>& data, const string& player)
         return;
     }
     double hcp = calculateHCP(it->second);
-    cout << player << " has " << it->second.size() << " rounds of golf";
-    if (hcp == 55.0) cout << ", but hasn't played enough for a handicap.";
-    else cout << ", with HCP of " << hcp;
+    if (hcp == 55.0){
+        cout << player <<" has too few rounds for a handicap:";
+     }
+    else{
+    cout<< player << "has a HCP of "<<hcp;
+    }
     cout << endl;
+
+
+
     for (const auto& round : it->second) {
         cout << round.club << " : " << round.score << endl;
     }
 }
+
 
 // Print function for "clubs [location]" command
 void displayClubs(const map<string, set<string>>& clubs, const string& location) {
@@ -218,7 +231,7 @@ void displayRounds(const map<string, vector<Round>>& data, const string& club) {
     }
 }
 
-// Print function for "places" command
+// Print function for "place" command
 void displayPlaces(const map<string, set<string>>& clubs) {
     vector<string> locations;
     for (const auto& entry : clubs) {
@@ -239,44 +252,92 @@ int main() {
     string filename;
     cout << "Input file: ";
     cin >> filename;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear buffer
 
     map<string, vector<Round>> data;
-    map<string, set<string>> clubs;  // Changed to set<string> to store unique clubs
+    map<string, set<string>> clubs;
     if (!processFile(filename, data, clubs)) {
         return EXIT_FAILURE;
     }
 
-    string command, argument;
+    string input, command, argument;
     while (true) {
         cout << "> ";
-        cin >> command;
-        if (command == "places") {
-             displayPlaces(clubs);
-        }
-        cin.ignore(); // ensures getline function actually reads the argument after the cin command.
-        getline(cin, argument);
-        argument = trim(argument);
+        getline(cin, input);  // Read full input
+        input = trim(input);  // Remove extra spaces
 
-        if (command == "exit") {
+        if (input.empty()) {
+            continue;  // Ignore empty input
+        }
+
+        stringstream ss(input);
+        ss >> command;  // Extract command first
+
+        if (ss.peek() == ' ') {  // Ignore space after command
+            ss.get();
+        }
+
+        if (ss.peek() == '"') {  // Handle quoted argument
+            ss.get();  // Remove leading quote
+            getline(ss, argument, '"');  // Read until closing quote
+        } else {
+            getline(ss, argument);  // Read normal argument
+        }
+
+        argument = trim(argument);  // Ensure clean input
+
+
+
+        // Command Handling
+        if (command == "quit" && argument.empty()) {
             break;
-        } else if (command == "played") {
-            displayPlayed(data, argument);
-        } else if (command == "clubs") {
-            displayClubs(clubs, argument);
-        } else if (command == "rounds") {
-            displayRounds(data, argument);
-        }else if (command == "compare") {
-            if (argument.empty()) {
-                cout << "Error: Missing player names!" << endl;
-            } else {
-                comparePlayers(data, argument);
+        }
+        else if (command == "places" ) {
+            if(!argument.empty()){
+                cout <<"Error: In command places"<<endl;
+            }
+            else{
+                displayPlaces(clubs);
             }
         }
+        else if (command == "played") {
+            if (argument.empty()) {
+                cout << "Error: In command played" << endl;
+            } else {
+                displayPlayed(data, argument);
+                argument = "";
+            }
+        }
+        else if (command == "clubs") {
+            if (argument.empty()) {
+                cout << "Error: In command clubs" << endl;
+            } else {
+                displayClubs(clubs, argument);
+                argument = "";
+            }
+        }
+        else if (command == "rounds") {
+            if (argument.empty()) {
+                cout << "Error: In command rounds" << endl;
+            } else {
+                displayRounds(data, argument);
+                argument = "";
+            }
+        }
+         else if (command == "compare"){
+             if (argument.empty()) {
+                cout << "Error: In command compare" << endl;
+            }
+             else{
+                 comparePlayers(data, argument);
 
-        else {
-            cout << "Unknown command!" << endl;
+             }
+        } else {
+            cout << "Error: Unknown command: " << command << endl;
         }
     }
-
     return EXIT_SUCCESS;
 }
+
+
+
