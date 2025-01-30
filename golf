@@ -85,6 +85,17 @@ double calculateHCP(const vector<Round>& rounds) {
     for (int i = 0; i < count; i++) sum += scores[i];
     return sum / count;
 }
+//Compares the HCP of the two players given and prints the results of the comparison.
+void displayCompare(const map<string, vector<Round>>& data, const string& player1, const string& player2) {
+    if (rounds.size() < 3) return 55.0;
+    vector<int> scores;
+    for (const auto& round : rounds) scores.push_back(round.score);
+    sort(scores.begin(), scores.end());
+    int count = min((int)scores.size(), 5);
+    double sum = 0;
+    for (int i = 0; i < count; i++) sum += scores[i];
+    return sum / count;
+}
 
 //Print function for a "Played [player]" command, uses HCP function to calculate HCP and print the according strings
 void displayPlayed(const map<string, vector<Round>>& data, const string& player) {
