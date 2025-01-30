@@ -10,9 +10,10 @@ using namespace std;
 struct Round {
     string name;  // Player's name
     int score;    // Score
+    string club;  // Club name
 };
 
-// Function to trim leading and trailing spaces
+// Trim from both sides of string
 string trim(const string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
     if (first == string::npos) return ""; // Empty or all spaces
@@ -20,7 +21,8 @@ string trim(const string& str) {
     return str.substr(first, (last - first + 1));
 }
 
-bool processFile(const string& filename, map<string, map<string, vector<Round>>>& data) {
+//Processing file function
+bool processFile(const string& filename, map<string, vector<Round>>& data, map<string, vector<string>>& clubs) {
     ifstream file(filename);
     if (!file) {
         cerr << "Error: The specified file cannot be opened!" << endl;
@@ -35,7 +37,6 @@ bool processFile(const string& filename, map<string, map<string, vector<Round>>>
         string location, golfClub, player, scoreStr;
         int score;
 
-        // Parse the line using ';' as a delimiter
         if (!getline(ss, location, ';') || !getline(ss, golfClub, ';') ||
             !getline(ss, player, ';') || !getline(ss, scoreStr, ';')) {
             cerr << "Error: The specified file has an erroneous line!" << endl;
@@ -43,20 +44,17 @@ bool processFile(const string& filename, map<string, map<string, vector<Round>>>
             return false;
         }
 
-        // Trim spaces
         location = trim(location);
         golfClub = trim(golfClub);
         player = trim(player);
         scoreStr = trim(scoreStr);
 
-        // Ensure no field is empty
         if (location.empty() || golfClub.empty() || player.empty() || scoreStr.empty()) {
             cerr << "Error: A line has an empty value!" << endl;
             cerr << "Problematic line: " << line << endl;
             return false;
         }
 
-        // Convert score to integer
         try {
             score = stoi(scoreStr);
         } catch (const invalid_argument&) {
@@ -67,24 +65,81 @@ bool processFile(const string& filename, map<string, map<string, vector<Round>>>
             return false;
         }
 
-        // Store the data using the Round struct
-        data[location][golfClub].push_back({player, score});
+        data[player].push_back({player, score, golfClub});
+        clubs[location].push_back(golfClub);
     }
     file.close();
     return true;
 }
 
-void displayData(const map<string, map<string, vector<Round>>>& data) {
-    for (const auto& location : data) {
-        cout << location.first << endl;  // Print location
+// Print function for "played [player]" command. The function also calculates the player's HCP to print the according strings.
+void displayPlayed(const map<string, vector<Round>>& data, const string& player) {
+    auto it = data.find(player);
+    if (it == data.end()) {
+        cout << "Error: The player hasn't played any rounds!" << endl;
+        return;
+    }
 
-        for (const auto& club : location.second) {
-            cout << "  " << club.first << endl;  // Print golf club
+    vector<Round> rounds = it->second;
 
-            for (const auto& round : club.second) {
-                cout << "    " << round.name << " " << round.score << endl;
+    sort(rounds.begin(), rounds.end(), [](const Round& a, const Round& b) {
+        if (a.score == b.score) return a.club < b.club;
+        return a.score < b.score;
+    });
+
+    int numRounds = rounds.size();
+    if (numRounds < 3) {
+        cout << player << " has too few rounds for a handicap:" << endl;
+    } else {
+        int sum = 0, count = min(numRounds, 5);
+        for (int i = 0; i < count; i++) sum += rounds[i].score;
+        double hcp = static_cast<double>(sum) / count;
+        cout << player << " has a HCP of " << hcp << " with following results:" << endl;
+    }
+
+    for (const auto& round : rounds) {
+        cout << round.club << " : " << round.score << endl;
+    }
+}
+
+// Print function for "clubs [location]" command
+void displayClubs(const map<string, vector<string>>& clubs, const string& location) {
+    auto it = clubs.find(location);
+    if (it == clubs.end()) {
+        cout << "Error: The given location not found!" << endl;
+        return;
+    }
+
+    vector<string> clubList = it->second;
+    sort(clubList.begin(), clubList.end());
+
+    for (const auto& club : clubList) {
+        cout << "--" << club << endl;
+    }
+}
+
+//Print function for "rounds [club]" command
+void displayRounds(const map<string, vector<Round>>& data, const string& club) {
+    vector<Round> rounds;
+    for (const auto& player : data) {
+        for (const auto& round : player.second) {
+            if (round.club == club) {
+                rounds.push_back(round);
             }
         }
+    }
+
+    if (rounds.empty()) {
+        cout << "Error: The given club not found!" << endl;
+        return;
+    }
+
+    sort(rounds.begin(), rounds.end(), [](const Round& a, const Round& b) {
+        return a.score < b.score;
+    });
+
+    for (const auto& round : rounds) {
+        cout << round.name << " : " << round.score << endl;
     }
 }
 
@@ -93,12 +148,32 @@ int main() {
     cout << "Input file: ";
     cin >> filename;
 
-    map<string, map<string, vector<Round>>> data;
-
-    if (!processFile(filename, data)) {
+    map<string, vector<Round>> data;
+    map<string, vector<string>> clubs;
+    if (!processFile(filename, data, clubs)) {
         return EXIT_FAILURE;
     }
 
-    displayData(data);
+    string command, argument;
+    while (true) {
+        cout << "> ";
+        cin >> command;
+        cin.ignore(); // ensures getline function actually reads the argument after the cin command.
+        getline(cin, argument);
+        argument = trim(argument);
+
+        if (command == "exit") {
+            break;
+        } else if (command == "played") {
+            displayPlayed(data, argument);
+        } else if (command == "clubs") {
+            displayClubs(clubs, argument);
+        } else if (command == "rounds") {
+            displayRounds(data, argument);
+        } else {
+            cout << "Unknown command!" << endl;
+        }
+    }
+
     return EXIT_SUCCESS;
 }
