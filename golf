@@ -74,32 +74,31 @@ bool processFile(const string& filename, map<string, vector<Round>>& data, map<s
     return true;
 }
 
-// Print function for "played [player]" command
+//HCP calculator
+double calculateHCP(const vector<Round>& rounds) {
+    if (rounds.size() < 3) return 55.0;
+    vector<int> scores;
+    for (const auto& round : rounds) scores.push_back(round.score);
+    sort(scores.begin(), scores.end());
+    int count = min((int)scores.size(), 5);
+    double sum = 0;
+    for (int i = 0; i < count; i++) sum += scores[i];
+    return sum / count;
+}
+
+//Print function for a "Played [player]" command, uses HCP function to calculate HCP and print the according strings
 void displayPlayed(const map<string, vector<Round>>& data, const string& player) {
     auto it = data.find(player);
     if (it == data.end()) {
         cout << "Error: The player hasn't played any rounds!" << endl;
         return;
     }
-
-    vector<Round> rounds = it->second;
-
-    sort(rounds.begin(), rounds.end(), [](const Round& a, const Round& b) {
-        if (a.score == b.score) return a.club < b.club;
-        return a.score < b.score;
-    });
-
-    int numRounds = rounds.size();
-    if (numRounds < 3) {
-        cout << player << " has too few rounds for a handicap:" << endl;
-    } else {
-        int sum = 0, count = min(numRounds, 5);
-        for (int i = 0; i < count; i++) sum += rounds[i].score;
-        double hcp = static_cast<double>(sum) / count;
-        cout << player << " has a HCP of " << hcp << " with following results:" << endl;
-    }
-
-    for (const auto& round : rounds) {
+    double hcp = calculateHCP(it->second);
+    cout << player << " has " << it->second.size() << " rounds of golf";
+    if (hcp == 55.0) cout << ", but hasn't played enough for a handicap.";
+    else cout << ", with HCP of " << hcp;
+    cout << endl;
+    for (const auto& round : it->second) {
         cout << round.club << " : " << round.score << endl;
     }
 }
