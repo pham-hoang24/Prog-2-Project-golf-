@@ -2,11 +2,13 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <set>
 #include <vector>
 #include <algorithm>
 
 using namespace std;
 
+//struct to contain player's name, score, club name for a SINGLE ROUND
 struct Round {
     string name;  // Player's name
     int score;    // Score
@@ -21,8 +23,8 @@ string trim(const string& str) {
     return str.substr(first, (last - first + 1));
 }
 
-//Processing file function
-bool processFile(const string& filename, map<string, vector<Round>>& data, map<string, vector<string>>& clubs) {
+// Processing file function
+bool processFile(const string& filename, map<string, vector<Round>>& data, map<string, set<string>>& clubs) {
     ifstream file(filename);
     if (!file) {
         cerr << "Error: The specified file cannot be opened!" << endl;
@@ -66,13 +68,13 @@ bool processFile(const string& filename, map<string, vector<Round>>& data, map<s
         }
 
         data[player].push_back({player, score, golfClub});
-        clubs[location].push_back(golfClub);
+        clubs[location].insert(golfClub);  // Ensures unique clubs per location
     }
     file.close();
     return true;
 }
 
-// Print function for "played [player]" command. The function also calculates the player's HCP to print the according strings.
+// Print function for "played [player]" command
 void displayPlayed(const map<string, vector<Round>>& data, const string& player) {
     auto it = data.find(player);
     if (it == data.end()) {
@@ -103,22 +105,19 @@ void displayPlayed(const map<string, vector<Round>>& data, const string& player)
 }
 
 // Print function for "clubs [location]" command
-void displayClubs(const map<string, vector<string>>& clubs, const string& location) {
+void displayClubs(const map<string, set<string>>& clubs, const string& location) {
     auto it = clubs.find(location);
     if (it == clubs.end()) {
         cout << "Error: The given location not found!" << endl;
         return;
     }
 
-    vector<string> clubList = it->second;
-    sort(clubList.begin(), clubList.end());
-
-    for (const auto& club : clubList) {
+    for (const auto& club : it->second) {
         cout << "--" << club << endl;
     }
 }
 
-//Print function for "rounds [club]" command
+// Print function for "rounds [club]" command
 void displayRounds(const map<string, vector<Round>>& data, const string& club) {
     vector<Round> rounds;
     for (const auto& player : data) {
@@ -143,13 +142,30 @@ void displayRounds(const map<string, vector<Round>>& data, const string& club) {
     }
 }
 
+// Print function for "places" command
+void displayPlaces(const map<string, set<string>>& clubs) {
+    vector<string> locations;
+    for (const auto& entry : clubs) {
+        locations.push_back(entry.first);
+    }
+
+    sort(locations.begin(), locations.end());
+
+    for (const auto& location : locations) {
+        cout << location << endl;
+        for (const auto& club : clubs.at(location)) {
+            cout << "--" << club << endl;
+        }
+    }
+}
+
 int main() {
     string filename;
     cout << "Input file: ";
     cin >> filename;
 
     map<string, vector<Round>> data;
-    map<string, vector<string>> clubs;
+    map<string, set<string>> clubs;  // Changed to set<string> to store unique clubs
     if (!processFile(filename, data, clubs)) {
         return EXIT_FAILURE;
     }
@@ -158,6 +174,9 @@ int main() {
     while (true) {
         cout << "> ";
         cin >> command;
+        if (command == "places") {
+             displayPlaces(clubs);
+        }
         cin.ignore(); // ensures getline function actually reads the argument after the cin command.
         getline(cin, argument);
         argument = trim(argument);
