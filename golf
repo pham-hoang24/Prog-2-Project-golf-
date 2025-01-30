@@ -37,46 +37,48 @@ bool processFile(const string& filename, map<string, vector<Round>>& data, map<s
     while (getline(file, line)) {
         if (line.empty()) continue; // Skip empty lines
 
+        // Count the number of semicolons
+        int semicolon_count = count(line.begin(), line.end(), ';');
+
+        // If not exactly 3 semicolons, it's an erroneous line
+        if (semicolon_count != 3) {
+            cerr << "Error: The specified file has an erroneous line!" << endl;
+            return false;
+        }
 
         stringstream ss(line);
         string location, golfClub, player, scoreStr;
-     
-        
-        // Trim and check for empty values
+
+        // Extract fields
+        getline(ss, location, ';');
+        getline(ss, golfClub, ';');
+        getline(ss, player, ';');
+        getline(ss, scoreStr, ';');  // Last field should not have a semicolon after
+
+        // Trim whitespace
         location = trim(location);
         golfClub = trim(golfClub);
         player = trim(player);
         scoreStr = trim(scoreStr);
 
+        // Check for empty values after ensuring exactly 3 semicolons
         if (location.empty() || golfClub.empty() || player.empty() || scoreStr.empty()) {
             cerr << "Error: A line has an empty value!" << endl;
             return false;
         }
 
-        if (!getline(ss, location, ';') || !getline(ss, golfClub, ';') ||
-            !getline(ss, player, ';') || !getline(ss, scoreStr, ';')) {
-            cerr << "Error: The specified file has an erroneous line!" << endl;
-            return false;
-        }
-
-
-
-        // Convert score to integer SAFELY
-        int score;
-        try {
-            score = stoi(scoreStr);
-        } catch (...) {
-            cerr << "Error: A line has an empty value!" << endl;
-            return false;
-        }
+        // Assume score is a valid integer per problem statement
+        int score = stoi(scoreStr);
 
         // Store data
         data[player].push_back({player, score, golfClub});
         clubs[location].insert(golfClub);
     }
+
     file.close();
     return true;
 }
+
 
 
 
